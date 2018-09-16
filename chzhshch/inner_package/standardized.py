@@ -165,8 +165,11 @@ class StandardHandle(object):
     # 获取顶和底
     # UGLY!!! 需要拆分
     def get_item(self, idx, s_len):
+        if idx >= s_len:
+            idx = s_len - 1
+
         curr = self.standardized_list[idx]
-        if getattr(curr, 'skip', False) and idx < s_len - 1:
+        if getattr(curr, 'skip', False):
             return self.get_item(idx + 1, s_len)
         else:
             return curr, idx
@@ -177,6 +180,7 @@ class StandardHandle(object):
 
         i = 0
         while i < s_length:
+            step = i
             if i > 0 and s_length - i > 1:
                 # pre = self.standardized_list[i - 1]
                 # curr = self.standardized_list[i]
@@ -194,7 +198,9 @@ class StandardHandle(object):
                     else:
                         curr["typing_value"] = curr["low"]
                     self.top_bottom_list.append(curr)
-            i += 1
+
+                step = idx_c
+            i = step + 1
 
         print("top_bottom_list")
         print(len(self.top_bottom_list))
