@@ -169,7 +169,7 @@ class StandardHandle(object):
             idx = s_len - 1
 
         curr = self.standardized_list[idx]
-        if getattr(curr, 'skip', False):
+        if getattr(curr, 'skip', False) and idx < s_len - 1:
             return self.get_item(idx + 1, s_len)
         else:
             return curr, idx
