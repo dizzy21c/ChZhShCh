@@ -109,18 +109,27 @@ class StandardHandle(object):
         result.append(item_pre)
         return result
 
+    def get_pre_item(self, idx):
+        item = self.standardized_list[idx]
+        if getattr(item, 'skip', False) and idx > 0:
+            return self.get_pre_item(idx - 1)
+
+        return (item, idx)
+
     # 标准化处理
     def deal_candle(self):
         i = 0
         while i < len(self.standardized_list):
             item_curr = self.standardized_list[i]
             if i > 0:
-                item_pre = self.standardized_list[i - 1]
+                # item_pre = self.standardized_list[i - 1]
+                item_pre, pre_idx = self.get_pre_item(i - 1)
                 self.__set_direction(item_pre, item_curr)
                 item_curr_pre = self.__merge_candles(item_pre, item_curr)
                 if self.is_merged:
                     self.standardized_list[i] = item_curr_pre[0]
-                    self.standardized_list[i-1] = item_curr_pre[1]
+                    # self.standardized_list[i-1] = item_curr_pre[1]
+                    self.standardized_list[pre_idx] = item_curr_pre[1]
                     # self.standardized_list.pop(i - 1)
                     # i -= 1
             i += 1
@@ -174,6 +183,25 @@ class StandardHandle(object):
         else:
             return curr, idx
 
+    def check_5k(self, after, curr):
+        knums = after - curr + 1
+        if knums < 4:
+            return False
+
+        i = curr + 1
+        while i < after and i > curr:
+            item = self.standardized_list[i]
+            if getattr(item, 'skip', False):
+                knums -= 1
+            i += 1
+
+        if knums < 4:
+            return False
+        else:
+            return True
+
+        
+
     def get_top_bottom(self):
         s_length = len(self.standardized_list)
         typing = 0
@@ -225,7 +253,8 @@ class StandardHandle(object):
 
                 # 若不成笔区间不存在，则表示当前点和前面的点满足一笔且前点不存在争议
                 if temp_rang["_top"] is None and temp_rang["_bottom"] is None:
-                    if after["int_index"] - curr["int_index"] >= 4:
+                    if self.check_5k(after["int_index"], curr["int_index"]):
+                    # if after["int_index"] - curr["int_index"] >= 4:
                         self.standardized_top_bottom_list.append(curr)
                     else:
                         # 如果不成笔区间未初始化 则需要重新确认不成笔区间
