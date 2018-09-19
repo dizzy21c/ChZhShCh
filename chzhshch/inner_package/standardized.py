@@ -35,66 +35,69 @@ class StandardHandle(object):
 
         if high_curr >= high_pre and low_curr <= low_pre:
             if self.candle_direction == 1:
-                item_curr['low'] = low_pre
-                item_pre['high'] = high_curr
+                # item_curr['low'] = low_pre
+                # item_pre['high'] = high_curr
+                item_pre['skip'] = 1
+                # if is_up_curr:
+                #     item_curr['open'] = low_pre
+                # else:
+                #     item_curr['close'] = low_pre
 
-                if is_up_curr:
-                    item_curr['open'] = low_pre
-                else:
-                    item_curr['close'] = low_pre
-
-                if is_up_pre:
-                    item_pre['close'] = high_curr
-                else:
-                    item_pre['open'] = high_curr
+                # if is_up_pre:
+                #     item_pre['close'] = high_curr
+                # else:
+                #     item_pre['open'] = high_curr
 
                 self.is_merged = True
             elif self.candle_direction == -1:
-                item_curr['high'] = high_pre
-                item_pre['low'] = low_curr
+                # item_curr['high'] = high_pre
+                # item_pre['low'] = low_curr
+                item_pre['skip'] = 1
 
-                if is_up_curr:
-                    item_curr['close'] = high_pre
-                else:
-                    item_curr['open'] = high_pre
+                # if is_up_curr:
+                #     item_curr['close'] = high_pre
+                # else:
+                #     item_curr['open'] = high_pre
 
-                if is_up_pre:
-                    item_pre['open'] = low_curr
-                else:
-                    item_pre['close'] = low_curr
+                # if is_up_pre:
+                #     item_pre['open'] = low_curr
+                # else:
+                #     item_pre['close'] = low_curr
 
                 self.is_merged = True
             else:
                 self.is_merged = False
         elif high_pre >= high_curr and low_pre <= low_curr:
             if self.candle_direction == 1:
-                item_curr['high'] = high_pre
-                item_pre['low'] = low_curr
+                # item_curr['high'] = high_pre
+                # item_pre['low'] = low_curr
+                item_curr['skip'] = 1
 
-                if is_up_curr:
-                    item_curr['close'] = high_pre
-                else:
-                    item_curr['open'] = high_pre
+                # if is_up_curr:
+                #     item_curr['close'] = high_pre
+                # else:
+                #     item_curr['open'] = high_pre
 
-                if is_up_pre:
-                    item_pre['open'] = low_curr
-                else:
-                    item_pre['close'] = low_curr
+                # if is_up_pre:
+                #     item_pre['open'] = low_curr
+                # else:
+                #     item_pre['close'] = low_curr
 
                 self.is_merged = True
             elif self.candle_direction == -1:
-                item_curr['low'] = low_pre
-                item_pre['high'] = high_pre
+                # item_curr['low'] = low_pre
+                # item_pre['high'] = high_pre
+                item_curr['skip'] = 1
+                
+                # if is_up_curr:
+                #     item_curr['open'] = low_pre
+                # else:
+                #     item_curr['close'] = low_pre
 
-                if is_up_curr:
-                    item_curr['open'] = low_pre
-                else:
-                    item_curr['close'] = low_pre
-
-                if is_up_pre:
-                    item_pre['close'] = high_curr
-                else:
-                    item_pre['open'] = high_curr
+                # if is_up_pre:
+                #     item_pre['close'] = high_curr
+                # else:
+                #     item_pre['open'] = high_curr
 
                 self.is_merged = True
             else:
@@ -106,19 +109,29 @@ class StandardHandle(object):
         result.append(item_pre)
         return result
 
+    def get_pre_item(self, idx):
+        item = self.standardized_list[idx]
+        if getattr(item, 'skip', False) and idx > 0:
+            return self.get_pre_item(idx - 1)
+
+        return (item, idx)
+
     # 标准化处理
     def deal_candle(self):
         i = 0
         while i < len(self.standardized_list):
             item_curr = self.standardized_list[i]
             if i > 0:
-                item_pre = self.standardized_list[i - 1]
+                # item_pre = self.standardized_list[i - 1]
+                item_pre, pre_idx = self.get_pre_item(i - 1)
                 self.__set_direction(item_pre, item_curr)
                 item_curr_pre = self.__merge_candles(item_pre, item_curr)
                 if self.is_merged:
                     self.standardized_list[i] = item_curr_pre[0]
-                    self.standardized_list.pop(i - 1)
-                    i -= 1
+                    # self.standardized_list[i-1] = item_curr_pre[1]
+                    self.standardized_list[pre_idx] = item_curr_pre[1]
+                    # self.standardized_list.pop(i - 1)
+                    # i -= 1
             i += 1
 
         list_index = 0
@@ -160,33 +173,69 @@ class StandardHandle(object):
 
     # 获取顶和底
     # UGLY!!! 需要拆分
+    def get_item(self, idx, s_len):
+        if idx >= s_len:
+            idx = s_len - 1
+
+        curr = self.standardized_list[idx]
+        if getattr(curr, 'skip', False) and idx < s_len - 1:
+            return self.get_item(idx + 1, s_len)
+        else:
+            return curr, idx
+
+    def check_5k(self, after, curr):
+        knums = after - curr + 1
+        if knums < 4:
+            return False
+
+        i = curr + 1
+        while i < after and i > curr:
+            item = self.standardized_list[i]
+            if getattr(item, 'skip', False):
+                knums -= 1
+            i += 1
+
+        if knums < 4:
+            return False
+        else:
+            return True
+
+        
+
     def get_top_bottom(self):
         s_length = len(self.standardized_list)
         typing = 0
 
         i = 0
         while i < s_length:
+            step = i
             if i > 0 and s_length - i > 1:
-                pre = self.standardized_list[i - 1]
-                curr = self.standardized_list[i]
-                after = self.standardized_list[i + 1]
+                # pre = self.standardized_list[i - 1]
+                # curr = self.standardized_list[i]
+                # after = self.standardized_list[i + 1]
+                pre, idx_p =self.get_item(i - 1,s_length)
+                curr , idx_c = self.get_item(idx_p + 1,s_length)
+                after, idx_l = self.get_item(idx_c + 1,s_length)
+
                 typing = self.__get_typing(pre, curr, after)
                 if typing != 0:
-                    curr["int_index"] = i
+                    curr["int_index"] = idx_c
                     curr["typing"] = typing
                     if typing == 1:
                         curr["typing_value"] = curr["high"]
                     else:
                         curr["typing_value"] = curr["low"]
                     self.top_bottom_list.append(curr)
-            i += 1
+
+                step = idx_c
+            i = step + 1
 
         print("top_bottom_list")
         print(len(self.top_bottom_list))
 
         for item in self.top_bottom_list:
             self.top_bottom_list_ex.append([item["int_index"], item["typing_value"]])
-            print(item["int_index"], item["typing_value"], item["typing"])
+            print(item["index"],item["int_index"], item["typing_value"], item["typing"])
 
         # TODO:分型区间不能出现重合 处理
         # 连续顶顶或底底的情况要考虑极值的相比
@@ -204,7 +253,8 @@ class StandardHandle(object):
 
                 # 若不成笔区间不存在，则表示当前点和前面的点满足一笔且前点不存在争议
                 if temp_rang["_top"] is None and temp_rang["_bottom"] is None:
-                    if after["int_index"] - curr["int_index"] >= 4:
+                    if self.check_5k(after["int_index"], curr["int_index"]):
+                    # if after["int_index"] - curr["int_index"] >= 4:
                         self.standardized_top_bottom_list.append(curr)
                     else:
                         # 如果不成笔区间未初始化 则需要重新确认不成笔区间
